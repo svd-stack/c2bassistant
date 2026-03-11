@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VavaCars Dijital Ekspertiz</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d0f;
+    --surface: #16161a;
+    --surface2: #1e1e24;
+    --border: #2a2a35;
+    --accent: #ff4d00;
+    --accent2: #ff8c42;
+    --text: #f0f0f5;
+    --muted: #7a7a8c;
+    --success: #00c97a;
+    --radius: 16px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; align-items: center; }
+
+  .header { width: 100%; max-width: 820px; display: flex; align-items: center; justify-content: space-between; padding: 24px 20px 0; flex-wrap: wrap; gap: 10px; }
+  .logo { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 800; color: var(--accent); }
+  .logo span { color: var(--text); }
+  .controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .ctrl-btn {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+    padding: 7px 14px; border-radius: 30px; font-size: 13px; cursor: pointer;
+    transition: all 0.2s; display: flex; align-items: center; gap: 6px;
+  }
+  .ctrl-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .ctrl-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  /* VOICE BAR */
+  .voice-bar {
+    width: calc(100% - 40px); max-width: 820px; margin: 14px 20px 0;
+    background: var(--surface); border: 1.5px solid var(--border);
+    border-radius: 14px; padding: 14px 18px;
+    display: flex; align-items: center; gap: 14px;
+    transition: border-color 0.3s, background 0.3s;
+  }
+  .voice-bar.listening { border-color: var(--accent); background: rgba(255,77,0,0.04); }
+  .voice-bar.speaking { border-color: var(--success); background: rgba(0,201,122,0.04); }
+
+  .vb-orb {
+    width: 46px; height: 46px; min-width: 46px; border-radius: 50%;
+    background: var(--surface2); border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; cursor: pointer; transition: all 0.2s; user-select: none;
+  }
+  .vb-orb:hover { border-color: var(--accent); }
+  .vb-orb.listening { background: var(--accent); border-color: var(--accent); animation: orbPulse 1s infinite; }
+  .vb-orb.speaking { background: var(--success); border-color: var(--success); }
+  @keyframes orbPulse { 0%,100%{box-shadow:0 0 0 0 rgba(255,77,0,0.4);} 50%{box-shadow:0 0 0 12px rgba(255,77,0,0);} }
+
+  .vb-content { flex: 1; min-width: 0; }
+  .vb-status { font-size: 11px; color: var(--muted); margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .vb-transcript { font-size: 14px; color: var(--text); font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .vb-waves { display: flex; gap: 3px; align-items: center; height: 26px; }
+  .vb-waves span { width: 3px; border-radius: 2px; min-height: 3px; }
+  .vb-waves.idle span { height: 3px; background: var(--border); }
+  .vb-waves.speaking span { background: var(--success); animation: wv 0.7s infinite ease-in-out; }
+  .vb-waves.listening span { background: var(--accent); animation: wv 0.45s infinite ease-in-out; }
+  .vb-waves span:nth-child(1){animation-delay:0s} .vb-waves span:nth-child(2){animation-delay:.08s} .vb-waves span:nth-child(3){animation-delay:.16s} .vb-waves span:nth-child(4){animation-delay:.24s} .vb-waves span:nth-child(5){animation-delay:.32s} .vb-waves span:nth-child(6){animation-delay:.4s}
+  @keyframes wv { 0%,100%{height:3px} 50%{height:22px} }
+
+  /* Progress */
+  .progress-wrap { width: calc(100% - 40px); max-width: 820px; padding: 18px 0 0; }
+  .progress-label { font-size: 12px; color: var(--muted); margin-bottom: 9px; display: flex; justify-content: space-between; }
+  .progress-bar { height: 4px; background: var(--surface2); border-radius: 10px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 10px; transition: width 0.5s cubic-bezier(.4,0,.2,1); }
+  .steps-row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .step-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); transition: all 0.3s; }
+  .step-dot.done { background: var(--accent); }
+  .step-dot.current { background: var(--accent2); width: 22px; border-radius: 4px; }
+
+  /* Card */
+  .card { width: calc(100% - 40px); max-width: 820px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin: 16px 0 40px; padding: 30px; position: relative; overflow: hidden; }
+  .card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg,var(--accent),var(--accent2)); }
+
+  .step { display: none; }
+  .step.active { display: block; animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+
+  .step-title { font-family:'Syne',sans-serif; font-size:23px; font-weight:800; margin-bottom:5px; }
+  .step-subtitle { font-size:13px; color:var(--muted); margin-bottom:20px; line-height:1.5; }
+  .step-icon { font-size:28px; margin-bottom:10px; }
+  .voice-hint { display:inline-flex; align-items:center; gap:6px; background:rgba(255,77,0,0.07); border:1px solid rgba(255,77,0,0.2); border-radius:8px; padding:6px 12px; font-size:12px; color:var(--accent2); margin-bottom:18px; }
+
+  /* Grids */
+  .grid { display:grid; gap:9px; }
+  .grid-2 { grid-template-columns:repeat(2,1fr); }
+  .grid-3 { grid-template-columns:repeat(3,1fr); }
+  @media(max-width:560px){ .grid-3{grid-template-columns:repeat(2,1fr);} }
+
+  .option-card { background:var(--surface2); border:1.5px solid var(--border); border-radius:11px; padding:13px 11px; cursor:pointer; transition:all 0.2s; text-align:center; font-size:13px; font-weight:500; display:flex; flex-direction:column; align-items:center; gap:6px; user-select:none; }
+  .option-card:hover { border-color:var(--accent); background:rgba(255,77,0,0.07); }
+  .option-card.selected { border-color:var(--accent); background:rgba(255,77,0,0.12); color:var(--accent); }
+  .option-card .oc-icon { font-size:19px; }
+  .option-card .oc-label { font-size:12px; line-height:1.3; }
+
+  .year-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:7px; max-height:290px; overflow-y:auto; padding-right:4px; }
+  @media(max-width:500px){ .year-grid{grid-template-columns:repeat(3,1fr);} }
+  .year-grid::-webkit-scrollbar{width:4px} .year-grid::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+  .year-btn { background:var(--surface2); border:1.5px solid var(--border); color:var(--text); padding:9px 4px; border-radius:9px; font-size:13px; font-weight:600; cursor:pointer; transition:all 0.15s; }
+  .year-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .year-btn.selected { background:var(--accent); border-color:var(--accent); color:#fff; }
+
+  .brand-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+  @media(max-width:500px){ .brand-grid{grid-template-columns:repeat(3,1fr);} }
+  .brand-card { background:var(--surface2); border:1.5px solid var(--border); border-radius:10px; padding:11px 7px; cursor:pointer; text-align:center; font-size:12px; font-weight:500; display:flex; flex-direction:column; align-items:center; gap:5px; transition:all 0.2s; }
+  .brand-card:hover { border-color:var(--accent); }
+  .brand-card.selected { border-color:var(--accent); background:rgba(255,77,0,0.12); }
+  .brand-emoji { font-size:21px; }
+
+  .color-row { display:flex; flex-wrap:wrap; gap:13px; padding-bottom:24px; }
+  .color-dot { width:40px; height:40px; border-radius:50%; cursor:pointer; border:3px solid transparent; transition:all 0.2s; position:relative; box-shadow:0 2px 8px rgba(0,0,0,0.4); }
+  .color-dot:hover { transform:scale(1.1); }
+  .color-dot.selected { border-color:var(--accent); transform:scale(1.15); }
+  .color-dot .color-name { position:absolute; bottom:-17px; left:50%; transform:translateX(-50%); font-size:9px; white-space:nowrap; color:var(--muted); }
+
+  .input-group { display:flex; flex-direction:column; gap:6px; margin-bottom:16px; }
+  .input-label { font-size:12px; font-weight:500; color:var(--muted); }
+  .text-input { background:var(--surface2); border:1.5px solid var(--border); border-radius:9px; padding:11px 14px; color:var(--text); font-size:14px; font-family:'DM Sans',sans-serif; outline:none; transition:border 0.2s; width:100%; }
+  .text-input:focus { border-color:var(--accent); }
+  .text-input::placeholder { color:var(--muted); }
+  select.text-input { appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237a7a8c' stroke-width='2' fill='none'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 12px center; padding-right:34px; }
+  select.text-input option { background:#1e1e24; }
+
+  .toggle-cards { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  @media(max-width:500px){ .toggle-cards{grid-template-columns:1fr;} }
+  .toggle-card { background:var(--surface2); border:1.5px solid var(--border); border-radius:10px; padding:11px 13px; cursor:pointer; display:flex; align-items:center; gap:10px; font-size:12px; transition:all 0.2s; }
+  .toggle-card.danger { border-left:3px solid #ff4444; }
+  .toggle-card.checked { background:rgba(255,68,68,0.08); border-color:#ff4444; }
+  .toggle-card.detail-card.checked { background:rgba(0,201,122,0.08); border-color:var(--success); }
+  .tc-icon { width:25px; height:25px; min-width:25px; background:var(--border); border-radius:5px; display:flex; align-items:center; justify-content:center; font-size:13px; transition:background 0.2s; }
+
+  .damage-section { margin-bottom:20px; }
+  .damage-title { font-size:13px; font-weight:600; margin-bottom:9px; color:var(--accent2); }
+  .part-row { display:flex; align-items:center; gap:7px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:8px 11px; margin-bottom:6px; flex-wrap:wrap; }
+  .part-name { font-size:12px; min-width:110px; }
+  .part-options { display:flex; gap:5px; flex-wrap:wrap; }
+  .part-opt { padding:4px 9px; border-radius:16px; font-size:11px; font-weight:500; cursor:pointer; border:1px solid var(--border); background:var(--bg); color:var(--muted); transition:all 0.15s; }
+  .part-opt:hover { border-color:var(--accent); color:var(--accent); }
+  .part-opt.selected.original { background:var(--success); border-color:var(--success); color:#fff; }
+  .part-opt.selected.painted { background:#e6b800; border-color:#e6b800; color:#000; }
+  .part-opt.selected.changed { background:#ff4444; border-color:#ff4444; color:#fff; }
+
+  .btn-row { display:flex; gap:9px; margin-top:22px; }
+  .btn-primary { background:var(--accent); color:#fff; border:none; padding:12px 22px; border-radius:9px; font-size:14px; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.2s; flex:1; }
+  .btn-primary:hover { background:#e04400; transform:translateY(-1px); }
+  .btn-primary:disabled { opacity:0.35; cursor:not-allowed; transform:none; }
+  .btn-back { background:var(--surface2); color:var(--text); border:1.5px solid var(--border); padding:12px 16px; border-radius:9px; font-size:14px; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.2s; }
+  .btn-back:hover { border-color:var(--text); }
+
+  .result-hero { text-align:center; padding:14px 0 22px; }
+  .price-range { font-family:'Syne',sans-serif; font-size:34px; font-weight:800; color:var(--success); margin:9px 0; }
+  .price-label { font-size:12px; color:var(--muted); }
+  .car-summary { background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:14px; margin:16px 0; display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .summary-item .si-label { color:var(--muted); font-size:11px; margin-bottom:2px; }
+  .summary-item .si-val { font-weight:600; font-size:13px; }
+  .result-actions { display:flex; flex-direction:column; gap:8px; }
+  .btn-appointment { background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#fff; border:none; padding:14px; border-radius:9px; font-size:15px; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.2s; width:100%; }
+  .btn-appointment:hover { opacity:0.9; transform:translateY(-1px); }
+  .btn-secondary { background:transparent; border:1.5px solid var(--border); color:var(--text); padding:11px; border-radius:9px; font-size:13px; font-weight:500; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.2s; width:100%; }
+  .btn-secondary:hover { border-color:var(--accent); color:var(--accent); }
+
+  .no-price-box { background:rgba(255,140,66,0.08); border:1px solid rgba(255,140,66,0.3); border-radius:10px; padding:16px; text-align:center; margin:12px 0 18px; }
+  .no-price-icon { font-size:30px; margin-bottom:6px; }
+  .no-price-text { font-size:13px; color:var(--accent2); line-height:1.6; }
+
+  .appt-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  @media(max-width:500px){ .appt-grid{grid-template-columns:1fr;} }
+
+  .confirm-box { text-align:center; padding:26px 0; }
+  .confirm-icon { font-size:52px; margin-bottom:13px; }
+  .confirm-title { font-family:'Syne',sans-serif; font-size:24px; font-weight:800; margin-bottom:8px; }
+  .confirm-id { background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:11px 16px; margin:14px auto; display:inline-block; font-family:monospace; font-size:16px; color:var(--accent); letter-spacing:2px; }
+  .confirm-sub { font-size:13px; color:var(--muted); line-height:1.7; }
+
+  .mic-row { display:flex; gap:7px; }
+  .mic-row .text-input { flex:1; }
+  .mic-btn { background:var(--surface2); border:1.5px solid var(--border); color:var(--muted); width:40px; height:40px; min-width:40px; border-radius:8px; cursor:pointer; font-size:16px; display:flex; align-items:center; justify-content:center; transition:all 0.2s; }
+  .mic-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .mic-btn.listening { background:var(--accent); border-color:var(--accent); color:#fff; animation:orbPulse 1s infinite; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">vava<span>cars</span></div>
+  <div class="controls">
+    <button class="ctrl-btn" onclick="toggleLang()">🌐 <span id="langLabel">EN</span></button>
+    <button class="ctrl-btn active" id="voiceBtn" onclick="toggleVoice()">🔊 <span id="voiceBtnLabel">Ses Açık</span></button>
+    <button class="ctrl-btn" id="continuousBtn" onclick="toggleContinuous()">🎤 <span id="contLabel">Sürekli Dinle</span></button>
+  </div>
+</div>
+
+<!-- VOICE BAR -->
+<div class="voice-bar" id="voiceBar">
+  <div class="vb-orb" id="vbOrb" onclick="toggleListening()" title="Mikrofon">🎤</div>
+  <div class="vb-content">
+    <div class="vb-status" id="vbStatus">Hazır — mikrofona tıklayın</div>
+    <div class="vb-transcript" id="vbTranscript">…</div>
+  </div>
+  <div class="vb-waves idle" id="vbWaves"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+</div>
+
+<div class="progress-wrap">
+  <div class="progress-label">
+    <span id="stepLabel">Adım 1 / 10</span>
+    <span id="stepName">Araç Yılı</span>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:10%"></div></div>
+  <div class="steps-row" id="stepsRow"></div>
+</div>
+
+<div class="card">
+
+  <div class="step active" id="step1">
+    <div class="step-icon">📅</div>
+    <div class="step-title" id="s1title">Aracınızın Model Yılı Nedir?</div>
+    <div class="step-subtitle" id="s1sub">2009 öncesi araçlar için değerleme yapılamamaktadır.</div>
+    <div class="voice-hint" id="vh1">🎙️ Söyleyin: <b>"2018"</b> veya <b>"iki bin on sekiz"</b></div>
+    <div class="year-grid" id="yearGrid"></div>
+    <div class="btn-row"><button class="btn-primary" onclick="goStep(2)" id="nextYear" disabled>Devam Et →</button></div>
+  </div>
+
+  <div class="step" id="step2">
+    <div class="step-icon">🚗</div>
+    <div class="step-title" id="s2title">Marka Seçin</div>
+    <div class="step-subtitle" id="s2sub">Aracınızın markasını seçin.</div>
+    <div class="voice-hint" id="vh2">🎙️ Söyleyin: <b>"Toyota"</b>, <b>"Ford"</b>, <b>"Renault"</b>…</div>
+    <div class="brand-grid" id="brandGrid"></div>
+    <div class="btn-row"><button class="btn-back" onclick="goStep(1)">← Geri</button><button class="btn-primary" onclick="goStep(3)" id="nextBrand" disabled>Devam Et →</button></div>
+  </div>
+
+  <div class="step" id="step3">
+    <div class="step-icon">🏷️</div>
+    <div class="step-title" id="s3title">Model Seçin</div>
+    <div class="step-subtitle" id="s3sub">Aracınızın modelini seçin.</div>
+    <div class="voice-hint" id="vh3">🎙️ Söyleyin: <b>"Corolla"</b>, <b>"Clio"</b>, <b>"Golf"</b>…</div>
+    <div class="grid grid-3" id="modelGrid"></div>
+    <div class="btn-row"><button class="btn-back" onclick="goStep(2)">← Geri</button><button class="btn-primary" onclick="goStep(4)" id="nextModel" disabled>Devam Et →</button></div>
+  </div>
+
+  <div class="step" id="step4">
+    <div class="step-icon">⚙️</div>
+    <div class="step-title" id="s4title">Araç Özellikleri</div>
+    <div class="step-subtitle" id="s4sub">Kasa tipi, vites, yakıt ve renk seçin.</div>
+    <div class="voice-hint" id="vh4">🎙️ Söyleyin: <b>"Sedan, Manuel, Benzin, Beyaz"</b></div>
+    <div class="input-label" id="s4bodyLabel" style="margin-bottom:8px">Kasa Tipi</div>
+    <div class="grid grid-3" id="bodyGrid" style="margin-bottom:16px"></div>
+    <div class="input-label" id="s4transLabel" style="margin-bottom:8px">Vites</div>
+    <div class="grid grid-2" id="transGrid" style="margin-bottom:16px"></div>
+    <div class="input-label" id="s4fuelLabel" style="margin-bottom:8px">Yakıt Türü</div>
+    <div class="grid grid-3" id="fuelGrid" style="margin-bottom:16px"></div>
+    <div class="input-label" id="s4colorLabel" style="margin-bottom:13px">Renk</div>
+    <div class="color-row" id="colorGrid"></div>
+    <div class="btn-row"><button class="btn-back" onclick="goStep(3)">← Geri</button><button class="btn-primary" onclick="goStep(5)" id="nextSpecs" disabled>Devam Et →</button></div>
+  </div>
+
+  <div class="step" id="step5">
+    <div class="step-icon">📋</div>
+    <div class="step-title" id="s5title">Araç Bilgileri</div>
+    <div class="step-subtitle" id="s5sub">Kilometre ve şehir bilgilerini girin.</div>
+    <div class="voice-hint" id="vh5">🎙️ Söyleyin: <b>"seksen beş bin kilometre, İstanbul"</b></div>
+    <div class="input-group">
+      <label class="input-label" id="plateLabel">Plaka (opsiyonel)</label>
+      <input class="text-input" id="plateInput" placeholder="34 ABC 123" maxlength="10">
+    </div>
+    <div class="input-group">
+      <label class="input-label" id="kmLabel">Kilometre *</label>
+      <div class="mic-row">
+        <input class="text-input" id="kmInput" type="number" placeholder="85000" min="0" max="999999" oninput="checkStep5()">
+        <button class="mic-btn" id="micKm" onclick="micField('km')" title="Sesle gir">🎤</button>
+      </div>
+    </div>
+    <div class="input-group">
+      <label class="input-label" id="cityLabel">Şehir *</label>
+      <div class="mic-row">
+        <select class="text-input" id="citySelect" onchange="checkStep5()">
+          <option value="">Seçin...</option>
+          <option>İstanbul</option><option>Ankara</option><option>İzmir</option><option>Bursa</option><option>Antalya</option><option>Adana</option><option>Konya</option><option>Gaziantep</option><option>Kayseri</option><option>Mersin</option><option>Diyarbakır</option><option>Samsun</option><option>Trabzon</option><option>Eskişehir</option><option>Kocaeli</option><option>Diğer</option>
+        </select>
+        <button class="mic-btn" id="micCity" onclick="micField('city')" title="Sesle gir">🎤</button>
+      </div>
+    </div>
+    <div class="btn-row"><button class="btn-back" onclick="goStep(4)">← Geri</button><button class="btn-primary" onclick="goStep(6)" id="nextInfo" disabled>Devam Et →</button></div>
+  </div>
+
+  <div class="step" id="step6">
+    <div class="step-icon">⚠️</div>
+    <div class="step-title" id="s6title">Araç Alımına Engel Durumlar</div>
+    <div class="step-subtitle" id="s6sub">Varsa işaretleyin, yoksa "Devam" deyin.</div>
+    <div class="voice-hint" id="vh6">🎙️ Söyleyin: <b>"Yok"</b> / <b>"Devam"</b> veya <b>"hava yastığı"</b></div>
+    <div class="toggle-cards" id="blockerGrid"></div>
+    <div class="btn-row"><button class="btn-back" onclick="goStep(5)">← Geri</button><button class="btn-primary" onclick="goStep(7)">Devam Et →</button></div>
+  </div>
+
+  <div class="step" id="step7">
+    <div class="step-icon">🔍</div>
+    <div class="step-title" id="s7title">Hasar Durumu</div>
+    <div class="step-subtitle" id="s7sub">Her parça için durumu seçin. Belirtilmeyenler orijinal kabul edilir.</div>
+    <div class="voice-hint" id="vh7">🎙️ Söyleyin: <b>"Hasar yok"</b> veya <b>"sol ön kapı boyalı"</b></div>
+    <div id="damageMap"></div>
+    <div class="btn-row"><button class="btn-back" onclick="goStep(6)">← Geri</button><button class="btn-primary" onclick="goStep(8)">Devam Et →</button></div>
+  </div>
+
+  <div class="step" id="step8">
+    <div class="step-icon">🔑</div>
+    <div class="step-title" id="s8title">Araç Detayları</div>
+    <div class="step-subtitle" id="s8sub">Son birkaç soru kaldı.</div>
+    <div class="voice-hint" id="vh8">🎙️ Söyleyin: <b>"yedek anahtar var, bakım yapıldı"</b></div>
+    <div class="toggle-cards" id="detailGrid"></div>
+    <div class="btn-row"><button class="btn-back" onclick="goStep(7)">← Geri</button><button class="btn-primary" onclick="calcResult()">Değerlemeyi Hesapla 🎯</button></div>
+  </div>
+
+  <div class="step" id="step9">
+    <div class="result-hero" id="resultHero"></div>
+    <div class="car-summary" id="carSummary"></div>
+    <div class="result-actions" id="resultActions"></div>
+  </div>
+
+  <div class="step" id="step10">
+    <div class="step-icon">📅</div>
+    <div class="step-title" id="s10title">Randevu Al</div>
+    <div class="step-subtitle" id="s10sub">En yakın VavaCars noktasında ücretsiz ekspertiz randevusu oluşturun.</div>
+    <div class="voice-hint" id="vh10">🎙️ Mikrofon ikonuna tıklayarak ad ve telefonu sesle girebilirsiniz</div>
+    <div class="appt-grid">
+      <div class="input-group">
+        <label class="input-label" id="nameLabel">Ad Soyad *</label>
+        <div class="mic-row"><input class="text-input" id="apptName" placeholder="Ahmet Yılmaz" oninput="checkAppt()"><button class="mic-btn" id="micName" onclick="micField('name')">🎤</button></div>
+      </div>
+      <div class="input-group">
+        <label class="input-label" id="phoneLabel">Telefon *</label>
+        <div class="mic-row"><input class="text-input" id="apptPhone" placeholder="0555 123 45 67" type="tel" oninput="checkAppt()"><button class="mic-btn" id="micPhone" onclick="micField('phone')">🎤</button></div>
+      </div>
+      <div class="input-group">
+        <label class="input-label" id="dateLabel">Tarih *</label>
+        <input class="text-input" id="apptDate" type="date" oninput="checkAppt()">
+      </div>
+      <div class="input-group">
+        <label class="input-label" id="timeLabel">Saat *</label>
+        <select class="text-input" id="apptTime" onchange="checkAppt()">
+          <option value="">Seçin...</option>
+          <option>09:00</option><option>10:00</option><option>11:00</option><option>12:00</option><option>13:00</option><option>14:00</option><option>15:00</option><option>16:00</option><option>17:00</option>
+        </select>
+      </div>
+    </div>
+    <div class="input-group"><label class="input-label" id="noteLabel">Not (opsiyonel)</label><input class="text-input" id="apptNote" placeholder="Eklemek istediğiniz bir not…"></div>
+    <div class="btn-row"><button class="btn-back" onclick="goStep(9)">← Geri</button><button class="btn-primary" onclick="submitAppt()" id="apptBtn" disabled>Randevuyu Onayla ✓</button></div>
+  </div>
+
+  <div class="step" id="step11">
+    <div class="confirm-box">
+      <div class="confirm-icon">✅</div>
+      <div class="confirm-title" id="confirmTitle">Randevunuz Oluşturuldu!</div>
+      <div class="confirm-id" id="confirmId">VC-000000</div>
+      <div class="confirm-sub" id="confirmSub">Randevu detaylarınız SMS ile gönderilecektir.</div>
+      <div class="btn-row" style="justify-content:center;margin-top:20px"><button class="btn-primary" style="max-width:220px" onclick="restart()">Yeni Değerleme Başlat</button></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ===== DATA =====
+const BRANDS = [
+  {name:'Fiat',e:'🇮🇹',models:['Egea','Fiorino','Doblo','Tipo','500','Bravo','Linea']},
+  {name:'Ford',e:'🔵',models:['Focus','Fiesta','Mondeo','Kuga','Puma','Transit','Ranger']},
+  {name:'Hyundai',e:'🔷',models:['i20','i30','Tucson','Elantra','Santa Fe','Creta']},
+  {name:'Renault',e:'🔶',models:['Clio','Megane','Fluence','Kadjar','Symbol','Duster','Captur']},
+  {name:'Toyota',e:'⭕',models:['Corolla','Yaris','C-HR','RAV4','Hilux','Camry']},
+  {name:'Volkswagen',e:'🔵',models:['Golf','Polo','Passat','Tiguan','T-Roc','Caddy']},
+  {name:'Opel',e:'🟡',models:['Astra','Corsa','Insignia','Crossland','Mokka']},
+  {name:'Peugeot',e:'🦁',models:['208','301','308','3008','5008','Partner']},
+  {name:'Citroen',e:'🔘',models:['C3','C4','C5','Berlingo','Jumpy']},
+  {name:'Dacia',e:'🟣',models:['Sandero','Logan','Duster','Lodgy']},
+  {name:'Honda',e:'⚪',models:['Civic','HR-V','CR-V','Jazz']},
+  {name:'BMW',e:'🔵',models:['1 Serisi','3 Serisi','5 Serisi','X1','X3','X5']},
+  {name:'Mercedes',e:'⭐',models:['A Serisi','C Serisi','E Serisi','GLA','GLC','GLE']},
+  {name:'Audi',e:'🔵',models:['A3','A4','A6','Q3','Q5','Q7']},
+  {name:'Nissan',e:'🔴',models:['Micra','Qashqai','Juke','X-Trail','Navara']},
+  {name:'Skoda',e:'🟢',models:['Fabia','Octavia','Superb','Karoq','Kodiaq']},
+];
+const BODIES=['Sedan','Hatchback','SUV / Crossover','Pickup','Minivan','Station Wagon','Coupe'];
+const TRANSMISSIONS=['Manuel','Otomatik'];
+const FUELS=['Benzin','Dizel','LPG','Hibrit','Elektrik'];
+const COLORS=[{name:'Beyaz',hex:'#f5f5f5'},{name:'Siyah',hex:'#1a1a1a'},{name:'Gri',hex:'#888'},{name:'Gümüş',hex:'#c0c0c0'},{name:'Kırmızı',hex:'#cc2200'},{name:'Mavi',hex:'#1a4fa0'},{name:'Lacivert',hex:'#0d2060'},{name:'Yeşil',hex:'#2a7a2a'},{name:'Sarı',hex:'#e6b800'},{name:'Turuncu',hex:'#e05c00'},{name:'Kahverengi',hex:'#7a3b10'},{name:'Bej',hex:'#c8b070'}];
+const BLOCKERS=[
+  {e:'⚠️',tr:'İkaz Lambası Arızası',en:'Warning Light',voice:['ikaz','uyarı','lambası']},
+  {e:'🔩',tr:'Şasi/Kaporta Hasarı',en:'Chassis Damage',voice:['şasi','kaporta']},
+  {e:'💥',tr:'Ağır Hasar Kaydı',en:'Heavy Damage',voice:['ağır hasar']},
+  {e:'🎨',tr:'Tamamen Folyo/Boya',en:'Full Wrap',voice:['folyo','kaplama']},
+  {e:'🛡️',tr:'Hava Yastığı Açılmış',en:'Airbag Deployed',voice:['hava yastığı','airbag']},
+  {e:'🏠',tr:'Tavan Hasarı',en:'Roof Damage',voice:['tavan hasarı']},
+];
+const DAMAGE_PARTS={
+  tr:{left:['Sol Ön Kapı','Sol Arka Kapı','Sol Çamurluk','Sol Arka Çamurluk'],right:['Sağ Ön Kapı','Sağ Arka Kapı','Sağ Çamurluk','Sağ Arka Çamurluk'],other:['Ön Tampon','Arka Tampon','Kaput','Bagaj Kapağı','Tavan']},
+  en:{left:['Left Front Door','Left Rear Door','Left Fender','Left Rear Fender'],right:['Right Front Door','Right Rear Door','Right Fender','Right Rear Fender'],other:['Front Bumper','Rear Bumper','Hood','Trunk Lid','Roof']}
+};
+const DETAILS=[
+  {e:'🔑',tr:'Yedek Anahtarım Var',en:'Spare Key',voice:['yedek anahtar','anahtar']},
+  {e:'🛞',tr:'Yeni Lastikler (1-3 yıl)',en:'New Tires',voice:['lastik','yeni lastik']},
+  {e:'🔧',tr:'Periyodik Bakım Yapıldı',en:'Maintenance Done',voice:['bakım','periyodik']},
+  {e:'📄',tr:'Servis Geçmişi Mevcut',en:'Service History',voice:['servis','geçmiş']},
+];
+const CITIES=['İstanbul','Ankara','İzmir','Bursa','Antalya','Adana','Konya','Gaziantep','Kayseri','Mersin','Diyarbakır','Samsun','Trabzon','Eskişehir','Kocaeli'];
+const FUEL_ICONS={Benzin:'⛽',Dizel:'🛢️',LPG:'🔵',Hibrit:'🌿',Elektrik:'⚡'};
+
+// ===== STATE =====
+let lang='tr', voiceOn=true, continuousMode=false, currentStep=1;
+let sel={year:null,brand:null,model:null,body:null,trans:null,fuel:null,color:null,km:'',city:'',blockers:[],damage:{},details:[]};
+
+// ===== TRANSLATIONS =====
+const T={
+  tr:{
+    stepLabel:s=>`Adım ${s} / 10`,
+    stepNames:['Araç Yılı','Marka','Model','Araç Özellikleri','Araç Bilgileri','Engel Durumlar','Hasar Durumu','Araç Detayları','Değerleme Sonucu','Randevu'],
+    s1title:'Aracınızın Model Yılı Nedir?',s1sub:'2009 öncesi araçlar için değerleme yapılamamaktadır.',
+    s2title:'Marka Seçin',s2sub:'Aracınızın markasını seçin.',
+    s3title:'Model Seçin',s3sub:'Aracınızın modelini seçin.',
+    s4title:'Araç Özellikleri',s4sub:'Kasa tipi, vites, yakıt ve renk seçin.',bodyL:'Kasa Tipi',transL:'Vites',fuelL:'Yakıt Türü',colorL:'Renk',
+    s5title:'Araç Bilgileri',s5sub:'Kilometre ve şehir bilgilerini girin.',plateL:'Plaka (opsiyonel)',kmL:'Kilometre *',cityL:'Şehir *',
+    s6title:'Araç Alımına Engel Durumlar',s6sub:'Varsa işaretleyin, yoksa Devam deyin.',
+    s7title:'Hasar Durumu',s7sub:'Her parça için durumu seçin.',
+    s8title:'Araç Detayları',s8sub:'Son birkaç soru kaldı.',
+    s10title:'Randevu Al',s10sub:'En yakın VavaCars noktasında ücretsiz ekspertiz randevusu oluşturun.',
+    nameL:'Ad Soyad *',phoneL:'Telefon *',dateL:'Tarih *',timeL:'Saat *',noteL:'Not (opsiyonel)',
+    original:'Orijinal',painted:'Boyalı',changed:'Değişen',
+    leftSide:'Sol Taraf',rightSide:'Sağ Taraf',otherParts:'Diğer Parçalar',
+    confirmTitle:'Randevunuz Oluşturuldu!',confirmSub:'Randevu detaylarınız SMS ile gönderilecektir.',
+    priceLabel:'Tahmini Piyasa Değeri',
+    priceRange:(lo,hi)=>`₺${lo.toLocaleString('tr')} – ₺${hi.toLocaleString('tr')}`,
+    noPrice:'Şu an kesin fiyat aralığı oluşturulamadı. VavaCars uzmanları ücretsiz ekspertiz ile en doğru teklifi sunar.',
+    noPriceBtn:'Ücretsiz Ekspertiz Randevusu Al',yesApptBtn:'📅 Randevu Oluştur',vavaBtn:'🔗 VavaCars\'ta Gör',
+    sYr:'Yıl',sBr:'Marka',sMo:'Model',sBo:'Kasa',sKm:'KM',sCi:'Şehir',sFu:'Yakıt',sCo:'Renk',
+    vt:['Aracınızın model yılını söyleyin. Örneğin iki bin on sekiz.',
+        'Aracınızın markasını söyleyin. Örneğin Toyota, Ford veya Renault.',
+        'Aracınızın modelini söyleyin.',
+        'Kasa tipini, vites türünü, yakıt ve rengi söyleyin. Örneğin: Sedan, Manuel, Benzin, Beyaz.',
+        'Aracınızın kilometresini ve şehrini söyleyin. Örneğin seksen beş bin kilometre, İstanbul.',
+        'Araç alımına engel bir durum var mı? Yoksa Devam deyin.',
+        'Aracınızda hasar var mı? Yoksa Hasar Yok deyin.',
+        'Yedek anahtar, lastik veya bakım durumunu söyleyin. Yoksa Devam deyin.',
+        null,
+        'Adınızı ve telefon numaranızı söyleyin.'],
+    stReady:'Hazır — mikrofona tıklayın',stListen:'Dinleniyor…',stSpeak:'Konuşuyor…',stProc:'İşleniyor…',
+  },
+  en:{
+    stepLabel:s=>`Step ${s} / 10`,
+    stepNames:['Vehicle Year','Brand','Model','Specifications','Vehicle Info','Blockers','Damage','Details','Valuation','Appointment'],
+    s1title:'What is Your Vehicle Model Year?',s1sub:'Vehicles before 2009 cannot be valued.',
+    s2title:'Select Brand',s2sub:'Select your vehicle brand.',
+    s3title:'Select Model',s3sub:'Select your vehicle model.',
+    s4title:'Vehicle Specifications',s4sub:'Select body type, transmission, fuel and color.',bodyL:'Body Type',transL:'Transmission',fuelL:'Fuel Type',colorL:'Color',
+    s5title:'Vehicle Information',s5sub:'Enter mileage and city.',plateL:'Plate (optional)',kmL:'Mileage *',cityL:'City *',
+    s6title:'Purchase Blockers',s6sub:'Mark any that apply, or say Continue.',
+    s7title:'Damage Status',s7sub:'Select status for each part.',
+    s8title:'Vehicle Details',s8sub:'Almost done.',
+    s10title:'Book Appointment',s10sub:'Schedule a free inspection at the nearest VavaCars.',
+    nameL:'Full Name *',phoneL:'Phone *',dateL:'Date *',timeL:'Time *',noteL:'Note (optional)',
+    original:'Original',painted:'Painted',changed:'Replaced',
+    leftSide:'Left Side',rightSide:'Right Side',otherParts:'Other Parts',
+    confirmTitle:'Appointment Created!',confirmSub:'Details will be sent via SMS.',
+    priceLabel:'Estimated Market Value',
+    priceRange:(lo,hi)=>`₺${lo.toLocaleString()} – ₺${hi.toLocaleString()}`,
+    noPrice:'A precise price range is not available. VavaCars experts will provide the most accurate offer.',
+    noPriceBtn:'Book Free Inspection',yesApptBtn:'📅 Book Appointment',vavaBtn:'🔗 View on VavaCars',
+    sYr:'Year',sBr:'Brand',sMo:'Model',sBo:'Body',sKm:'KM',sCi:'City',sFu:'Fuel',sCo:'Color',
+    vt:['Tell me your vehicle model year. For example two thousand eighteen.',
+        'Tell me your vehicle brand. For example Toyota, Ford or Renault.',
+        'Tell me your vehicle model.',
+        'Tell me body type, transmission, fuel and color. For example: Sedan, Manual, Gasoline, White.',
+        'Tell me your vehicle mileage and city.',
+        'Any purchase blockers? Say none or continue.',
+        'Any damage? Say no damage or describe it.',
+        'Tell me about spare key, tires or maintenance. Say continue if none.',
+        null,
+        'Tell me your name and phone number.'],
+    stReady:'Ready — click mic to speak',stListen:'Listening…',stSpeak:'Speaking…',stProc:'Processing…',
+  }
+};
+
+// ===== TTS =====
+const synth=window.speechSynthesis;
+let voices=[];
+synth.onvoiceschanged=()=>{voices=synth.getVoices();};
+
+function speak(text,onEnd){
+  if(!voiceOn||!text){if(onEnd)onEnd();return;}
+  synth.cancel();
+  setVBS('speaking',T[lang].stSpeak,text);
+  const u=new SpeechSynthesisUtterance(text);
+  u.lang=lang==='tr'?'tr-TR':'en-US';
+  const v=voices.find(v=>v.lang.startsWith(lang==='tr'?'tr':'en'));
+  if(v)u.voice=v;
+  u.rate=0.92;
+  u.onend=()=>{
+    setVBS('ready',T[lang].stReady,'…');
+    if(onEnd)onEnd();
+    if(continuousMode)setTimeout(startListen,350);
+  };
+  synth.speak(u);
+}
+
+// ===== STT =====
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+let recog=null,isListen=false,micTarget=null;
+
+function mkRecog(){
+  if(!SR)return null;
+  const r=new SR();
+  r.lang=lang==='tr'?'tr-TR':'en-US';
+  r.interimResults=true;
+  r.continuous=false;
+  r.onstart=()=>{isListen=true;setVBS('listening',T[lang].stListen,'…');};
+  r.onend=()=>{
+    isListen=false;
+    document.querySelectorAll('.mic-btn').forEach(b=>b.classList.remove('listening'));
+    document.getElementById('vbOrb').classList.remove('listening');
+    document.getElementById('vbOrb').textContent='🎤';
+    if(!continuousMode)setVBS('ready',T[lang].stReady,'…');
+  };
+  r.onerror=e=>{isListen=false;setVBS('ready',T[lang].stReady+' ('+e.error+')','…');};
+  r.onresult=e=>{
+    let interim='',final='';
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      if(e.results[i].isFinal)final+=e.results[i][0].transcript;
+      else interim+=e.results[i][0].transcript;
+    }
+    const disp=final||interim;
+    document.getElementById('vbTranscript').textContent=disp||'…';
+    if(final){
+      setVBS('processing',T[lang].stProc,final);
+      setTimeout(()=>processVoice(final.toLowerCase().trim()),150);
+    }
+  };
+  return r;
+}
+
+function startListen(){
+  if(!SR){alert(lang==='tr'?'Tarayıcınız ses tanımayı desteklemiyor.':'Speech recognition not supported.');return;}
+  if(isListen){recog&&recog.stop();return;}
+  recog=mkRecog();if(!recog)return;
+  document.getElementById('vbOrb').classList.add('listening');
+  document.getElementById('vbOrb').textContent='⏹';
+  try{recog.start();}catch(e){}
+}
+
+function stopListen(){if(recog&&isListen)recog.stop();}
+function toggleListening(){if(isListen)stopListen();else startListen();}
+
+function micField(field){
+  if(!SR)return;
+  micTarget=field;
+  const id='mic'+field.charAt(0).toUpperCase()+field.slice(1);
+  const btn=document.getElementById(id);
+  if(isListen){stopListen();micTarget=null;return;}
+  recog=mkRecog();if(!recog)return;
+  if(btn)btn.classList.add('listening');
+  try{recog.start();}catch(e){}
+}
+
+// ===== VOICE PROCESSOR =====
+function processVoice(t){
+  if(micTarget){handleField(micTarget,t);micTarget=null;return;}
+  switch(currentStep){
+    case 1:hYear(t);break;
+    case 2:hBrand(t);break;
+    case 3:hModel(t);break;
+    case 4:hSpecs(t);break;
+    case 5:hInfo(t);break;
+    case 6:hBlockers(t);break;
+    case 7:hDamage(t);break;
+    case 8:hDetails(t);break;
+    case 10:hAppt(t);break;
+  }
+}
+
+function handleField(field,t){
+  if(field==='km'){
+    const n=parseNum(t)||parseInt(t.replace(/\D/g,''))||0;
+    if(n>0){document.getElementById('kmInput').value=n;checkStep5();speak(lang==='tr'?`${n.toLocaleString('tr')} kilometre kaydedildi.`:`${n.toLocaleString()} km recorded.`);}
+  }else if(field==='city'){
+    const c=CITIES.find(c=>t.includes(c.toLowerCase().replace('i̇','i')));
+    if(c){document.getElementById('citySelect').value=c;checkStep5();speak(lang==='tr'?`${c} seçildi.`:`${c} selected.`);}
+  }else if(field==='name'){
+    const cap=t.trim().split(' ').map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join(' ');
+    document.getElementById('apptName').value=cap;checkAppt();speak(lang==='tr'?`${cap} kaydedildi.`:`${cap} saved.`);
+  }else if(field==='phone'){
+    const n=t.replace(/\D/g,'');
+    if(n.length>=10){document.getElementById('apptPhone').value=n;checkAppt();speak(lang==='tr'?'Telefon kaydedildi.':'Phone saved.');}
+  }
+}
+
+function hYear(t){
+  const y=parseYear(t);
+  if(y>=2009&&y<=2025){
+    sel.year=y;
+    document.querySelectorAll('.year-btn').forEach(b=>b.classList.toggle('selected',parseInt(b.textContent)===y));
+    document.getElementById('nextYear').disabled=false;
+    speak(lang==='tr'?`${y} seçildi.`:`${y} selected.`,()=>{if(continuousMode)setTimeout(()=>goStep(2),500);});
+  }else if(/devam|ileri|continue|next/.test(t)&&sel.year){goStep(2);}
+}
+
+function hBrand(t){
+  const found=BRANDS.find(b=>t.includes(b.name.toLowerCase()));
+  if(found){
+    sel.brand=found.name;sel.model=null;
+    document.querySelectorAll('.brand-card').forEach(b=>b.classList.toggle('selected',b.querySelector('span:last-child').textContent===found.name));
+    document.getElementById('nextBrand').disabled=false;
+    speak(lang==='tr'?`${found.name} seçildi.`:`${found.name} selected.`,()=>{if(continuousMode)setTimeout(()=>goStep(3),500);});
+  }else if(/devam|continue/.test(t)&&sel.brand){goStep(3);}
+}
+
+function hModel(t){
+  const brand=BRANDS.find(b=>b.name===sel.brand);if(!brand)return;
+  const found=brand.models.find(m=>t.includes(m.toLowerCase()));
+  if(found){
+    sel.model=found;
+    document.querySelectorAll('#modelGrid .option-card').forEach(c=>c.classList.toggle('selected',c.querySelector('.oc-label').textContent===found));
+    document.getElementById('nextModel').disabled=false;
+    speak(lang==='tr'?`${found} seçildi.`:`${found} selected.`,()=>{if(continuousMode)setTimeout(()=>goStep(4),500);});
+  }else if(/devam|continue/.test(t)&&sel.model){goStep(4);}
+}
+
+function hSpecs(t){
+  let ch=false;
+  const bmap={sedan:'Sedan',hatchback:'Hatchback',suv:'SUV / Crossover',crossover:'SUV / Crossover',pickup:'Pickup',minivan:'Minivan',station:'Station Wagon',coupe:'Coupe'};
+  for(const[k,v]of Object.entries(bmap)){if(t.includes(k)){sel.body=v;ch=true;}}
+  if(/manuel|manual/.test(t)){sel.trans='Manuel';ch=true;}
+  if(/otomatik|automatic/.test(t)){sel.trans='Otomatik';ch=true;}
+  if(/benzin|gasoline|petrol/.test(t)){sel.fuel='Benzin';ch=true;}
+  if(/dizel|diesel/.test(t)){sel.fuel='Dizel';ch=true;}
+  if(/\blpg\b/.test(t)){sel.fuel='LPG';ch=true;}
+  if(/hibrit|hybrid/.test(t)){sel.fuel='Hibrit';ch=true;}
+  if(/elektrik|electric/.test(t)){sel.fuel='Elektrik';ch=true;}
+  const cmap={beyaz:'Beyaz',siyah:'Siyah',gri:'Gri',gümüş:'Gümüş',kırmızı:'Kırmızı',mavi:'Mavi',lacivert:'Lacivert',yeşil:'Yeşil',sarı:'Sarı',turuncu:'Turuncu',kahve:'Kahverengi',bej:'Bej',white:'Beyaz',black:'Siyah',grey:'Gri',gray:'Gri',silver:'Gümüş',red:'Kırmızı',blue:'Mavi',green:'Yeşil',yellow:'Sarı',orange:'Turuncu',brown:'Kahverengi',beige:'Bej'};
+  for(const[k,v]of Object.entries(cmap)){if(t.includes(k)){sel.color=v;ch=true;}}
+  if(ch){buildSpecs();checkSpecs();
+    const done=sel.body&&sel.trans&&sel.fuel&&sel.color;
+    const conf=[sel.body,sel.trans,sel.fuel,sel.color].filter(Boolean).join(', ');
+    speak(done?(lang==='tr'?`Seçimler tamam: ${conf}.`:`Done: ${conf}.`):(lang==='tr'?`${conf} anlaşıldı. Devam etmek için eksikleri tamamlayın.`:`Got ${conf}. Complete the rest.`),()=>{if(done&&continuousMode)setTimeout(()=>goStep(5),600);});
+  }else if(/devam|continue/.test(t)){if(sel.body&&sel.trans&&sel.fuel)goStep(5);}
+}
+
+function hInfo(t){
+  const n=parseNum(t)||parseInt(t.replace(/\D/g,''))||0;
+  if(n>0&&n<999999){document.getElementById('kmInput').value=n;sel.km=String(n);}
+  const city=CITIES.find(c=>{const cn=c.toLowerCase().replace('i̇','i').replace('ı','i');return t.replace('ı','i').replace('ş','s').replace('ğ','g').replace('ü','u').replace('ö','o').replace('ç','c').includes(cn.replace('ı','i').replace('ş','s').replace('ğ','g').replace('ü','u').replace('ö','o').replace('ç','c'));});
+  if(city){document.getElementById('citySelect').value=city;sel.city=city;}
+  checkStep5();
+  if(sel.km&&sel.city){speak(lang==='tr'?`${parseInt(sel.km).toLocaleString('tr')} kilometre, ${sel.city}.`:`${parseInt(sel.km).toLocaleString()} km, ${sel.city}.`,()=>{if(continuousMode)setTimeout(()=>goStep(6),500);});}
+  else if(/devam|continue/.test(t)&&sel.km&&sel.city){goStep(6);}
+}
+
+function hBlockers(t){
+  if(/yok|hayır|none|devam|continue|geç/.test(t)){speak(lang==='tr'?'Tamam.':'Ok.',()=>setTimeout(()=>goStep(7),400));return;}
+  let found=[];
+  BLOCKERS.forEach((bl,i)=>{
+    if(bl.voice.some(k=>t.includes(k))){if(!sel.blockers.includes(i)){sel.blockers.push(i);}found.push(lang==='tr'?bl.tr:bl.en);}
+  });
+  if(found.length){buildBlockers();speak(lang==='tr'?`${found.join(', ')} işaretlendi.`:`${found.join(', ')} marked.`);}
+}
+
+function hDamage(t){
+  if(/hasar yok|temiz|no damage|devam|continue/.test(t)){speak(lang==='tr'?'Devam ediyoruz.':'Continuing.',()=>setTimeout(()=>goStep(8),400));return;}
+  const parts=DAMAGE_PARTS[lang];
+  const allParts=[...parts.left,...parts.right,...parts.other];
+  const keys=[...parts.left.map((_,i)=>'left_'+i),...parts.right.map((_,i)=>'right_'+i),...parts.other.map((_,i)=>'other_'+i)];
+  let msg=[];
+  allParts.forEach((p,idx)=>{
+    const pn=p.toLowerCase();
+    if(t.includes(pn)){const v=/boyalı|painted/.test(t)?1:/değişen|changed|replaced/.test(t)?2:1;sel.damage[keys[idx]]=v;msg.push(p);}
+  });
+  if(msg.length){buildDamageMap();speak(lang==='tr'?`${msg.join(', ')} hasar işaretlendi.`:`${msg.join(', ')} marked.`);}
+}
+
+function hDetails(t){
+  if(/yok|hayır|none|hiçbiri/.test(t)){speak(lang==='tr'?'Anlaşıldı.':'Got it.',()=>setTimeout(()=>calcResult(),400));return;}
+  let found=[];
+  DETAILS.forEach((d,i)=>{if(d.voice.some(k=>t.includes(k))){if(!sel.details.includes(i)){sel.details.push(i);}found.push(lang==='tr'?d.tr:d.en);}});
+  if(found.length){buildDetails();speak(lang==='tr'?`${found.join(', ')} işaretlendi.`:`${found.join(', ')} marked.`);}
+  if(/hesapla|calculate|devam|continue/.test(t)){calcResult();}
+}
+
+function hAppt(t){/* user fills form fields by voice via micField buttons */}
+
+// ===== NUMBER PARSER =====
+function parseYear(t){
+  const m=t.match(/\b(20\d\d|19\d\d)\b/);if(m)return parseInt(m[1]);
+  const yw={'iki bin dokuz':2009,'iki bin on':2010,'iki bin on bir':2011,'iki bin on iki':2012,'iki bin on üç':2013,'iki bin on dört':2014,'iki bin on beş':2015,'iki bin on altı':2016,'iki bin on yedi':2017,'iki bin on sekiz':2018,'iki bin on dokuz':2019,'iki bin yirmi':2020,'iki bin yirmi bir':2021,'iki bin yirmi iki':2022,'iki bin yirmi üç':2023,'iki bin yirmi dört':2024,'iki bin yirmi beş':2025};
+  for(const[k,v]of Object.entries(yw)){if(t.includes(k))return v;}return 0;
+}
+function parseNum(t){
+  const m=t.match(/(\d[\d.]*)/);if(m)return parseInt(m[1].replace(/\./g,''));
+  const w={'sıfır':0,'bir':1,'iki':2,'üç':3,'dört':4,'beş':5,'altı':6,'yedi':7,'sekiz':8,'dokuz':9,'on':10,'yirmi':20,'otuz':30,'kırk':40,'elli':50,'altmış':60,'yetmiş':70,'seksen':80,'doksan':90,'yüz':100,'bin':1000};
+  let n=0,curr=0;
+  for(const p of t.split(/\s+/)){const v=w[p];if(v!==undefined){if(v===100)curr=(curr||1)*100;else if(v===1000){n+=(curr||1)*1000;curr=0;}else curr+=v;}}
+  return n+curr;
+}
+
+// ===== UI HELPERS =====
+function setVBS(state,status,transcript){
+  const bar=document.getElementById('voiceBar');
+  const waves=document.getElementById('vbWaves');
+  bar.className='voice-bar '+state;
+  waves.className='vb-waves '+(state==='ready'?'idle':state);
+  document.getElementById('vbStatus').textContent=status;
+  if(transcript)document.getElementById('vbTranscript').textContent=transcript;
+}
+
+function toggleVoice(){
+  voiceOn=!voiceOn;
+  document.getElementById('voiceBtn').classList.toggle('active',voiceOn);
+  document.getElementById('voiceBtnLabel').textContent=voiceOn?(lang==='tr'?'Ses Açık':'Voice On'):(lang==='tr'?'Ses Kapalı':'Voice Off');
+}
+
+function toggleContinuous(){
+  if(!SR){alert(lang==='tr'?'Tarayıcınız ses tanımayı desteklemiyor.':'Not supported.');return;}
+  continuousMode=!continuousMode;
+  document.getElementById('continuousBtn').classList.toggle('active',continuousMode);
+  document.getElementById('contLabel').textContent=continuousMode?(lang==='tr'?'Canlı: Açık':'Live: On'):(lang==='tr'?'Sürekli Dinle':'Live Listen');
+  if(continuousMode){speak(T[lang].vt[currentStep-1]||'');}else{stopListen();}
+}
+
+function toggleLang(){
+  lang=lang==='tr'?'en':'tr';
+  document.getElementById('langLabel').textContent=lang==='tr'?'EN':'TR';
+  document.getElementById('voiceBtnLabel').textContent=voiceOn?(lang==='tr'?'Ses Açık':'Voice On'):(lang==='tr'?'Ses Kapalı':'Voice Off');
+  document.getElementById('contLabel').textContent=continuousMode?(lang==='tr'?'Canlı: Açık':'Live: On'):(lang==='tr'?'Sürekli Dinle':'Live Listen');
+  try{if(recog)recog.stop();}catch(e){}
+  rebuildStep(currentStep);updateProgress(currentStep);
+}
+
+// ===== BUILD STEPS =====
+function buildYears(){
+  const g=document.getElementById('yearGrid');g.innerHTML='';
+  for(let y=2025;y>=2009;y--){const b=document.createElement('button');b.className='year-btn'+(sel.year===y?' selected':'');b.textContent=y;b.onclick=()=>{sel.year=y;document.querySelectorAll('.year-btn').forEach(x=>x.classList.remove('selected'));b.classList.add('selected');document.getElementById('nextYear').disabled=false;};g.appendChild(b);}
+}
+
+function buildBrands(){
+  const g=document.getElementById('brandGrid');g.innerHTML='';
+  BRANDS.forEach(br=>{const d=document.createElement('div');d.className='brand-card'+(sel.brand===br.name?' selected':'');d.innerHTML=`<span class="brand-emoji">${br.e}</span><span>${br.name}</span>`;d.onclick=()=>{sel.brand=br.name;sel.model=null;document.querySelectorAll('.brand-card').forEach(x=>x.classList.remove('selected'));d.classList.add('selected');document.getElementById('nextBrand').disabled=false;};g.appendChild(d);});
+}
+
+function buildModels(){
+  const g=document.getElementById('modelGrid');g.innerHTML='';
+  const brand=BRANDS.find(b=>b.name===sel.brand);if(!brand)return;
+  brand.models.forEach(m=>{const d=document.createElement('div');d.className='option-card'+(sel.model===m?' selected':'');d.innerHTML=`<span class="oc-label">${m}</span>`;d.onclick=()=>{sel.model=m;document.querySelectorAll('#modelGrid .option-card').forEach(x=>x.classList.remove('selected'));d.classList.add('selected');document.getElementById('nextModel').disabled=false;};g.appendChild(d);});
+}
+
+function buildSpecs(){
+  const mkG=(id,items,key)=>{const g=document.getElementById(id);if(!g)return;g.innerHTML='';items.forEach(item=>{const d=document.createElement('div');d.className='option-card'+(sel[key]===item?' selected':'');const ic=FUEL_ICONS[item]||(key==='trans'?(item==='Manuel'?'🕹️':'🤖'):null);d.innerHTML=ic?`<span class="oc-icon">${ic}</span><span class="oc-label">${item}</span>`:`<span class="oc-label">${item}</span>`;d.onclick=()=>{sel[key]=item;g.querySelectorAll('.option-card').forEach(x=>x.classList.remove('selected'));d.classList.add('selected');checkSpecs();};g.appendChild(d);});};
+  mkG('bodyGrid',BODIES,'body');mkG('transGrid',TRANSMISSIONS,'trans');mkG('fuelGrid',FUELS,'fuel');
+  const cg=document.getElementById('colorGrid');cg.innerHTML='';
+  COLORS.forEach(c=>{const d=document.createElement('div');d.className='color-dot'+(sel.color===c.name?' selected':'');d.style.background=c.hex;d.title=c.name;d.innerHTML=`<span class="color-name">${c.name}</span>`;d.onclick=()=>{sel.color=c.name;document.querySelectorAll('.color-dot').forEach(x=>x.classList.remove('selected'));d.classList.add('selected');checkSpecs();};cg.appendChild(d);});
+}
+function checkSpecs(){document.getElementById('nextSpecs').disabled=!(sel.body&&sel.trans&&sel.fuel&&sel.color);}
+
+function buildBlockers(){
+  const g=document.getElementById('blockerGrid');g.innerHTML='';
+  BLOCKERS.forEach((bl,i)=>{const ch=sel.blockers.includes(i);const d=document.createElement('div');d.className='toggle-card danger'+(ch?' checked':'');d.innerHTML=`<div class="tc-icon" style="${ch?'background:#ff4444':''}">${bl.e}</div><span>${lang==='tr'?bl.tr:bl.en}</span>`;d.onclick=()=>{const idx=sel.blockers.indexOf(i);if(idx===-1)sel.blockers.push(i);else sel.blockers.splice(idx,1);buildBlockers();};g.appendChild(d);});
+}
+
+function buildDamageMap(){
+  const t=T[lang];const parts=DAMAGE_PARTS[lang];const g=document.getElementById('damageMap');g.innerHTML='';
+  const opts=[t.original,t.painted,t.changed];const cls=['original','painted','changed'];
+  const mkSec=(title,partList,prefix)=>{const sec=document.createElement('div');sec.className='damage-section';sec.innerHTML=`<div class="damage-title">${title}</div>`;partList.forEach((p,i)=>{const key=prefix+'_'+i;const row=document.createElement('div');row.className='part-row';row.innerHTML=`<span class="part-name">${p}</span><div class="part-options"></div>`;const po=row.querySelector('.part-options');opts.forEach((o,oi)=>{const btn=document.createElement('button');btn.className=`part-opt ${cls[oi]}`+(sel.damage[key]===oi?' selected':'');btn.textContent=o;btn.onclick=()=>{sel.damage[key]=oi;row.querySelectorAll('.part-opt').forEach(x=>x.classList.remove('selected'));btn.classList.add('selected');};po.appendChild(btn);});sec.appendChild(row);});g.appendChild(sec);};
+  mkSec(t.leftSide,parts.left,'left');mkSec(t.rightSide,parts.right,'right');mkSec(t.otherParts,parts.other,'other');
+}
+
+function buildDetails(){
+  const g=document.getElementById('detailGrid');g.innerHTML='';
+  DETAILS.forEach((d,i)=>{const ch=sel.details.includes(i);const el=document.createElement('div');el.className='toggle-card detail-card'+(ch?' checked':'');el.innerHTML=`<div class="tc-icon" style="${ch?'background:var(--success)':''}">${d.e}</div><span>${lang==='tr'?d.tr:d.en}</span>`;el.onclick=()=>{const idx=sel.details.indexOf(i);if(idx===-1)sel.details.push(i);else sel.details.splice(idx,1);buildDetails();};g.appendChild(el);});
+}
+
+// ===== CALC =====
+function calcResult(){
+  const prem=['BMW','Mercedes','Audi'],mid=['Toyota','Hyundai','Honda','Volkswagen','Skoda','Ford'];
+  let base=prem.includes(sel.brand)?1800000:mid.includes(sel.brand)?1200000:900000;
+  base*=Math.pow(0.87,2025-(sel.year||2015));
+  const km=parseInt(sel.km)||0;
+  if(km>200000)base*=0.70;else if(km>150000)base*=0.80;else if(km>100000)base*=0.88;else if(km>50000)base*=0.95;else if(km<20000)base*=1.05;
+  if(/hibrit|hybrid/.test((sel.fuel||'').toLowerCase()))base*=1.12;
+  if(/elektrik|electric/.test((sel.fuel||'').toLowerCase()))base*=1.20;
+  base*=Math.pow(0.96,Object.values(sel.damage).filter(v=>v>0).length);
+  if(sel.blockers.length>0)base*=0.85;
+  base+=sel.details.length*15000;
+  const hasData=sel.km&&sel.city&&sel.brand&&sel.model&&sel.year&&sel.fuel;
+  const t=T[lang];
+  const hero=document.getElementById('resultHero'),actions=document.getElementById('resultActions');
+  if(hasData){
+    const lo=Math.round(base*0.93/1000)*1000,hi=Math.round(base*1.07/1000)*1000;
+    hero.innerHTML=`<div class="step-icon">💰</div><div class="step-title">${lang==='tr'?'Tahmini Değer':'Estimated Value'}</div><div class="price-label">${t.priceLabel}</div><div class="price-range">${t.priceRange(lo,hi)}</div><div style="font-size:11px;color:var(--muted);margin-top:4px">${lang==='tr'?'*Piyasa koşullarına göre değişkenlik gösterebilir.':'*May vary based on market conditions.'}</div>`;
+    actions.innerHTML=`<button class="btn-appointment" onclick="goStep(10)">${t.yesApptBtn}</button><a href="https://tr.vava.cars/sell/valuation/year" target="_blank"><button class="btn-secondary">${t.vavaBtn}</button></a>`;
+    speak(lang==='tr'?`Tahmini araç değeriniz ${lo.toLocaleString('tr')} ile ${hi.toLocaleString('tr')} Türk Lirası arasında. Randevu almak ister misiniz?`:`Your estimated vehicle value is between ${lo.toLocaleString()} and ${hi.toLocaleString()} Turkish Lira. Would you like to book an appointment?`);
+  }else{
+    hero.innerHTML=`<div class="no-price-box"><div class="no-price-icon">📊</div><div class="no-price-text">${t.noPrice}</div></div>`;
+    actions.innerHTML=`<button class="btn-appointment" onclick="goStep(10)">${t.noPriceBtn}</button><a href="https://tr.vava.cars/sell/valuation/year" target="_blank"><button class="btn-secondary">${t.vavaBtn}</button></a>`;
+    speak(lang==='tr'?'Yeterli veri bulunamadı. Ücretsiz ekspertiz randevusu alabilirsiniz.':'Not enough data. You can book a free inspection.');
+  }
+  const sum=document.getElementById('carSummary');
+  sum.innerHTML=`<div class="summary-item"><div class="si-label">${t.sYr}</div><div class="si-val">${sel.year}</div></div><div class="summary-item"><div class="si-label">${t.sBr}</div><div class="si-val">${sel.brand}</div></div><div class="summary-item"><div class="si-label">${t.sMo}</div><div class="si-val">${sel.model}</div></div><div class="summary-item"><div class="si-label">${t.sBo}</div><div class="si-val">${sel.body}</div></div><div class="summary-item"><div class="si-label">${t.sFu}</div><div class="si-val">${sel.fuel}</div></div><div class="summary-item"><div class="si-label">${t.sKm}</div><div class="si-val">${parseInt(sel.km||0).toLocaleString(lang==='tr'?'tr':'en')} km</div></div><div class="summary-item"><div class="si-label">${t.sCi}</div><div class="si-val">${sel.city}</div></div><div class="summary-item"><div class="si-label">${t.sCo}</div><div class="si-val">${sel.color}</div></div>`;
+  goStep(9);
+}
+
+// ===== APPOINTMENT =====
+function checkAppt(){const n=document.getElementById('apptName').value.trim(),p=document.getElementById('apptPhone').value.trim(),d=document.getElementById('apptDate').value,ti=document.getElementById('apptTime').value;document.getElementById('apptBtn').disabled=!(n&&p&&d&&ti);}
+function submitAppt(){
+  const id='VC-'+Math.floor(100000+Math.random()*900000);
+  const t=T[lang];
+  document.getElementById('confirmTitle').textContent=t.confirmTitle;
+  document.getElementById('confirmId').textContent=id;
+  document.getElementById('confirmSub').textContent=t.confirmSub;
+  speak(lang==='tr'?`Randevunuz oluşturuldu. Randevu kodunuz ${id}.`:`Appointment confirmed. Code: ${id}.`);
+  goStep(11);
+}
+
+// ===== NAVIGATION =====
+function goStep(n){
+  if(n<1||n>11)return;
+  synth.cancel();
+  document.querySelectorAll('.step').forEach(s=>s.classList.remove('active'));
+  document.getElementById('step'+n).classList.add('active');
+  currentStep=n;updateProgress(n);rebuildStep(n);
+  if(n<=10&&n!==9){const vt=T[lang].vt[n-1];if(vt)speak(vt,()=>{if(continuousMode)setTimeout(startListen,350);});else if(continuousMode)setTimeout(startListen,350);}
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function rebuildStep(n){
+  const t=T[lang];
+  const s=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
+  if(n===1){s('s1title',t.s1title);s('s1sub',t.s1sub);buildYears();}
+  if(n===2){s('s2title',t.s2title);s('s2sub',t.s2sub);buildBrands();}
+  if(n===3){s('s3title',t.s3title);s('s3sub',t.s3sub);buildModels();}
+  if(n===4){s('s4title',t.s4title);s('s4sub',t.s4sub);s('s4bodyLabel',t.bodyL);s('s4transLabel',t.transL);s('s4fuelLabel',t.fuelL);s('s4colorLabel',t.colorL);buildSpecs();}
+  if(n===5){s('s5title',t.s5title);s('s5sub',t.s5sub);s('plateLabel',t.plateL);s('kmLabel',t.kmL);s('cityLabel',t.cityL);}
+  if(n===6){s('s6title',t.s6title);s('s6sub',t.s6sub);buildBlockers();}
+  if(n===7){s('s7title',t.s7title);s('s7sub',t.s7sub);buildDamageMap();}
+  if(n===8){s('s8title',t.s8title);s('s8sub',t.s8sub);buildDetails();}
+  if(n===10){s('s10title',t.s10title);s('s10sub',t.s10sub);s('nameLabel',t.nameL);s('phoneLabel',t.phoneL);s('dateLabel',t.dateL);s('timeLabel',t.timeL);s('noteLabel',t.noteL);document.getElementById('apptDate').min=new Date().toISOString().split('T')[0];}
+}
+
+function updateProgress(n){
+  const t=T[lang],max=10;
+  document.getElementById('progressFill').style.width=Math.round(n/max*100)+'%';
+  document.getElementById('stepLabel').textContent=t.stepLabel(Math.min(n,max));
+  document.getElementById('stepName').textContent=t.stepNames[Math.min(n-1,max-1)]||'';
+  const row=document.getElementById('stepsRow');row.innerHTML='';
+  for(let i=1;i<=max;i++){const d=document.createElement('div');d.className='step-dot'+(i<n?' done':i===n?' current':'');row.appendChild(d);}
+}
+
+function checkStep5(){sel.km=document.getElementById('kmInput').value;sel.city=document.getElementById('citySelect').value;document.getElementById('nextInfo').disabled=!(sel.km&&sel.city);}
+
+function restart(){
+  sel={year:null,brand:null,model:null,body:null,trans:null,fuel:null,color:null,km:'',city:'',blockers:[],damage:{},details:[]};
+  continuousMode=false;document.getElementById('continuousBtn').classList.remove('active');
+  document.getElementById('contLabel').textContent=lang==='tr'?'Sürekli Dinle':'Live Listen';
+  goStep(1);
+}
+
+// ===== INIT =====
+buildYears();updateProgress(1);setVBS('ready',T[lang].stReady,'…');
+setTimeout(()=>speak(T[lang].vt[0]),800);
+</script>
+</body>
+</html>
